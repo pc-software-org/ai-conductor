@@ -37,4 +37,43 @@ describe('end-to-end', () => {
     expect(changed).toBe(true);
     expect((await client.listTools()).tools.some((t) => t.name === 'srvA__echo')).toBe(true);
   });
+
+  it('cold start with pre-existing servers does not throw "Not connected"', async () => {
+    const a = await makeEchoServer('A');
+    const store = new ConfigStore(join(mkdtempSync(join(tmpdir(), 'e2e-cold-')), 'c.json'));
+    // Pre-populate the store with a server so manager.start() connects it before
+    // the upstream server has a transport — this is the cold-start scenario.
+    await store.save({
+      servers: [{ id: 'srvA', enabled: true, transport: { type: 'stdio', command: 'x', args: [], env: {} } }],
+    });
+
+    const unhandledRejections: unknown[] = [];
+    const onUnhandledRejection = (reason: unknown) => unhandledRejections.push(reason);
+    process.on('unhandledRejection', onUnhandledRejection);
+
+    try {
+      // createConductor triggers manager.start with a pre-existing server BEFORE
+      // the upstream server is connected to a transport.  With the bug, onChange
+      // fires during connect and throws "Not connected".
+      const conductor = await createConductor({
+        store,
+        transportFactory: async () => a.clientTransport,
+      });
+
+      // Give the microtask queue a tick so any stray rejection can surface.
+      await new Promise((r) => setTimeout(r, 20));
+
+      // Now connect an upstream client and verify srvA__echo is present.
+      const [clientT, serverT] = InMemoryTransport.createLinkedPair();
+      await conductor.server.connect(serverT);
+      const client = new Client({ name: 'test', version: '1.0.0' });
+      await client.connect(clientT);
+
+      expect((await client.listTools()).tools.some((t) => t.name === 'srvA__echo')).toBe(true);
+    } finally {
+      process.off('unhandledRejection', onUnhandledRejection);
+    }
+
+    expect(unhandledRejections).toHaveLength(0);
+  });
 });

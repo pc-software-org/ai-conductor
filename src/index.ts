@@ -28,9 +28,10 @@ export async function createConductor(opts: ConductorOptions = {}): Promise<Cond
   // onChange fires whenever capabilities/state change → tell the upstream client.
   let server: Server | undefined;
   const onChange = () => {
-    server?.sendToolListChanged();
-    server?.sendResourceListChanged();
-    server?.sendPromptListChanged();
+    if (!server?.transport) return; // upstream not connected yet → client will fetch fresh lists on connect
+    server.sendToolListChanged();
+    server.sendResourceListChanged();
+    server.sendPromptListChanged();
   };
 
   const manager = new DownstreamManager(transportFactory, onChange);
