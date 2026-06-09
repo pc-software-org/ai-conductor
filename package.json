@@ -3,9 +3,15 @@
   "version": "0.1.0",
   "description": "Local MCP proxy that aggregates downstream MCP servers, managed at runtime.",
   "type": "module",
-  "bin": { "ai-conductor": "dist/index.js" },
-  "files": ["dist"],
-  "engines": { "node": ">=20" },
+  "bin": {
+    "ai-conductor": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "tsup",
     "dev": "tsx src/index.ts",
@@ -19,6 +25,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/node": "^25.9.2",
     "tsup": "^8.3.0",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
