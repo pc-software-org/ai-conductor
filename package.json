@@ -5,13 +5,13 @@
   "type": "module",
   "license": "MIT",
   "author": "Patrick Cornelißen (https://github.com/pcornelissen)",
-  "homepage": "https://github.com/pcornelissen/ai-conductor#readme",
+  "homepage": "https://github.com/pc-software-org/ai-conductor#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pcornelissen/ai-conductor.git"
+    "url": "git+https://github.com/pc-software-org/ai-conductor.git"
   },
   "bugs": {
-    "url": "https://github.com/pcornelissen/ai-conductor/issues"
+    "url": "https://github.com/pc-software-org/ai-conductor/issues"
   },
   "keywords": [
     "mcp",
