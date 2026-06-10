@@ -40,7 +40,8 @@ export async function createConductor(opts: ConductorOptions = {}): Promise<Cond
   };
 
   const cache = opts.cache ?? new CapabilityCache();
-  const idleMs = opts.idleMs ?? Number(process.env.CONDUCTOR_IDLE_TIMEOUT_MS ?? 300_000);
+  const rawIdleMs = Number(process.env.CONDUCTOR_IDLE_TIMEOUT_MS ?? 300_000);
+  const idleMs = opts.idleMs ?? (Number.isFinite(rawIdleMs) ? rawIdleMs : 300_000);
   const manager = new DownstreamManager(transportFactory, { onChange, cache, idleMs });
   const aggregator = new Aggregator(manager);
   const meta = new MetaTools(manager, store);
