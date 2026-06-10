@@ -1,8 +1,27 @@
 {
   "name": "ai-conductor",
   "version": "0.1.0",
-  "description": "Local MCP proxy that aggregates downstream MCP servers, managed at runtime.",
+  "description": "Local MCP proxy that aggregates dynamically managed downstream MCP servers, managed at runtime without restarting the client.",
   "type": "module",
+  "license": "MIT",
+  "author": "Patrick Cornelißen (https://github.com/pcornelissen)",
+  "homepage": "https://github.com/pcornelissen/ai-conductor#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pcornelissen/ai-conductor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/pcornelissen/ai-conductor/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "proxy",
+    "aggregator",
+    "claude",
+    "llm",
+    "ai"
+  ],
   "bin": {
     "ai-conductor": "dist/index.js"
   },
@@ -17,7 +36,8 @@
     "dev": "tsx src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm typecheck && pnpm test && pnpm build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.29.0",
