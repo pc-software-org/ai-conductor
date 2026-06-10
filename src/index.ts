@@ -1,3 +1,5 @@
+import { realpathSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { ConfigStore } from './config/store.js';
@@ -51,8 +53,20 @@ export async function createConductor(opts: ConductorOptions = {}): Promise<Cond
   };
 }
 
+// True when this module is the process entry point. Resolves symlinks on both sides so
+// it works when launched via an npm/npx bin symlink (where process.argv[1] is the symlink
+// path but import.meta.url is the resolved real path). A naive string compare fails there.
+export function isMainModule(argv1: string | undefined, importMetaUrl: string): boolean {
+  if (!argv1) return false;
+  try {
+    return realpathSync(argv1) === fileURLToPath(importMetaUrl);
+  } catch {
+    return false;
+  }
+}
+
 // CLI entry: only runs when executed directly (not when imported by tests).
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainModule(process.argv[1], import.meta.url)) {
   createConductor()
     .then((c) => c.start())
     .catch((err) => {
