@@ -4,6 +4,8 @@ A local **MCP proxy / aggregator**. You register it **once** with an MCP client 
 Claude Desktop or Claude Code), and it sits in front of multiple, **dynamically managed**
 downstream MCP servers.
 
+> Published on npm as [`mcp-proxy-conductor`](https://www.npmjs.com/package/mcp-proxy-conductor).
+
 ## Why
 
 Individual MCP servers are fiddly to set up and force an agent restart on every change.
@@ -42,7 +44,7 @@ notifications.
 Register ai-conductor with your MCP client. With the Claude Code CLI:
 
 ```bash
-claude mcp add conductor -s user -- npx -y ai-conductor
+claude mcp add conductor -s user -- npx -y mcp-proxy-conductor
 ```
 
 Or add it manually to your client's MCP config:
@@ -50,7 +52,7 @@ Or add it manually to your client's MCP config:
 ```json
 {
   "mcpServers": {
-    "conductor": { "command": "npx", "args": ["-y", "ai-conductor"] }
+    "conductor": { "command": "npx", "args": ["-y", "mcp-proxy-conductor"] }
   }
 }
 ```

@@ -1,5 +1,5 @@
 {
-  "name": "ai-conductor",
+  "name": "mcp-proxy-conductor",
   "version": "0.1.0",
   "description": "Local MCP proxy that aggregates dynamically managed downstream MCP servers, managed at runtime without restarting the client.",
   "type": "module",
@@ -23,7 +23,7 @@
     "ai"
   ],
   "bin": {
-    "ai-conductor": "dist/index.js"
+    "mcp-proxy-conductor": "dist/index.js"
   },
   "files": [
     "dist"

@@ -1,7 +1,7 @@
 name: Publish to npm
 
 # Token-free publishing via npm Trusted Publishing (OIDC).
-# Configure the trusted publisher on npmjs.com for package "ai-conductor":
+# Configure the trusted publisher on npmjs.com for package "mcp-proxy-conductor":
 #   Organization or user: pc-software-org
 #   Repository:           ai-conductor
 #   Workflow filename:    publish.yml
