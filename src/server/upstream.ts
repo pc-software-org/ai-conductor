@@ -8,12 +8,13 @@ import {
   GetPromptRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { DELIM } from '../aggregator/namespace.js';
+import { VERSION } from '../version.js';
 import type { Aggregator } from '../aggregator/aggregate.js';
 import type { MetaTools } from '../meta/tools.js';
 
 export function buildUpstreamServer(aggregator: Aggregator, meta: MetaTools): Server {
   const server = new Server(
-    { name: 'ai-conductor', version: '0.1.0' },
+    { name: 'ai-conductor', version: VERSION },
     { capabilities: { tools: { listChanged: true }, resources: { listChanged: true }, prompts: { listChanged: true } } },
   );
 

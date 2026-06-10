@@ -1,6 +1,6 @@
 {
   "name": "mcp-proxy-conductor",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Local MCP proxy that aggregates dynamically managed downstream MCP servers, managed at runtime without restarting the client.",
   "type": "module",
   "license": "MIT",
@@ -32,11 +32,12 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "tsup",
-    "dev": "tsx src/index.ts",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "typecheck": "tsc --noEmit",
+    "gen:version": "node scripts/gen-version.mjs",
+    "build": "pnpm gen:version && tsup",
+    "dev": "pnpm gen:version && tsx src/index.ts",
+    "test": "pnpm gen:version && vitest run",
+    "test:watch": "pnpm gen:version && vitest",
+    "typecheck": "pnpm gen:version && tsc --noEmit",
     "prepublishOnly": "pnpm typecheck && pnpm test && pnpm build"
   },
   "dependencies": {

@@ -6,6 +6,7 @@ import { Aggregator } from '../src/aggregator/aggregate.js';
 import { MetaTools } from '../src/meta/tools.js';
 import { ConfigStore } from '../src/config/store.js';
 import { buildUpstreamServer } from '../src/server/upstream.js';
+import { VERSION } from '../src/version.js';
 import { makeEchoServer } from './helpers/echoServer.js';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -44,5 +45,10 @@ describe('upstream server', () => {
     const { client } = await wired();
     const res = await client.callTool({ name: 'list_servers', arguments: {} });
     expect((res.content as { text: string }[])[0].text).toContain('srvA');
+  });
+
+  it('reports serverInfo version from the package version', async () => {
+    const { client } = await wired();
+    expect(client.getServerVersion()).toEqual({ name: 'ai-conductor', version: VERSION });
   });
 });

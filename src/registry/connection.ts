@@ -5,6 +5,7 @@ import {
   ResourceListChangedNotificationSchema,
   PromptListChangedNotificationSchema,
 } from '@modelcontextprotocol/sdk/types.js';
+import { VERSION } from '../version.js';
 import type { ServerDefinition } from '../config/schema.js';
 import type { Capabilities, ConnState } from '../types.js';
 
@@ -21,7 +22,7 @@ export class DownstreamConnection {
     private readonly transportFactory: TransportFactory,
     private readonly onChange?: () => void,
   ) {
-    this.client = new Client({ name: 'ai-conductor', version: '0.1.0' });
+    this.client = new Client({ name: 'ai-conductor', version: VERSION });
   }
 
   async connect(): Promise<void> {
