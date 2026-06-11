@@ -59,6 +59,31 @@ export async function createConductor(opts: ConductorOptions = {}): Promise<Cond
   };
 }
 
+// Registers SIGINT/SIGTERM handlers that cleanly shut down all downstream connections
+// (stdio downstreams run as child processes and would otherwise be orphaned), then exit.
+// Idempotent: repeated signals during shutdown are ignored. `proc` is injectable for tests;
+// only the CLI path installs these — the programmatic createConductor() path stays untouched.
+export function installShutdownHandlers(
+  conductor: Pick<Conductor, 'manager'>,
+  proc: Pick<NodeJS.Process, 'on' | 'exit'> = process,
+): void {
+  let shuttingDown = false;
+  const shutdown = async (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    try {
+      await conductor.manager.closeAll();
+    } catch (err) {
+      console.error(`ai-conductor shutdown error on ${signal}:`, err);
+    } finally {
+      proc.exit(0);
+    }
+  };
+  // Node passes the signal name as the first listener arg.
+  proc.on('SIGINT', shutdown);
+  proc.on('SIGTERM', shutdown);
+}
+
 // True when this module is the process entry point. Resolves symlinks on both sides so
 // it works when launched via an npm/npx bin symlink (where process.argv[1] is the symlink
 // path but import.meta.url is the resolved real path). A naive string compare fails there.
@@ -74,7 +99,10 @@ export function isMainModule(argv1: string | undefined, importMetaUrl: string): 
 // CLI entry: only runs when executed directly (not when imported by tests).
 if (isMainModule(process.argv[1], import.meta.url)) {
   createConductor()
-    .then((c) => c.start())
+    .then(async (c) => {
+      installShutdownHandlers(c);
+      await c.start();
+    })
     .catch((err) => {
       console.error('ai-conductor failed to start:', err);
       process.exit(1);
