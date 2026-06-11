@@ -3,6 +3,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { ToolListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 import { createConductor } from '../src/index.js';
+import { CapabilityCache } from '../src/config/capability-cache.js';
 import { ConfigStore } from '../src/config/store.js';
 import { makeEchoServer } from './helpers/echoServer.js';
 import { mkdtempSync } from 'node:fs';
@@ -12,12 +13,16 @@ import { join } from 'node:path';
 describe('end-to-end', () => {
   it('add_server makes new tools appear and emits tools listChanged upstream', async () => {
     const a = await makeEchoServer('A');
-    const store = new ConfigStore(join(mkdtempSync(join(tmpdir(), 'e2e-')), 'c.json'));
+    const dir = mkdtempSync(join(tmpdir(), 'e2e-'));
+    const store = new ConfigStore(join(dir, 'c.json'));
+    const cache = new CapabilityCache(join(dir, 'caps.json'));
     await store.save({ servers: [] });
 
     // Inject a transport factory so 'srvA' resolves to our in-memory echo server.
+    // An isolated cache keeps the test from writing to the real OS config dir.
     const conductor = await createConductor({
       store,
+      cache,
       transportFactory: async () => a.clientTransport,
     });
 
@@ -40,7 +45,9 @@ describe('end-to-end', () => {
 
   it('cold start with pre-existing servers does not throw "Not connected"', async () => {
     const a = await makeEchoServer('A');
-    const store = new ConfigStore(join(mkdtempSync(join(tmpdir(), 'e2e-cold-')), 'c.json'));
+    const dir = mkdtempSync(join(tmpdir(), 'e2e-cold-'));
+    const store = new ConfigStore(join(dir, 'c.json'));
+    const cache = new CapabilityCache(join(dir, 'caps.json'));
     // Pre-populate the store with a server so manager.start() connects it before
     // the upstream server has a transport — this is the cold-start scenario.
     await store.save({
@@ -57,6 +64,7 @@ describe('end-to-end', () => {
       // fires during connect and throws "Not connected".
       const conductor = await createConductor({
         store,
+        cache,
         transportFactory: async () => a.clientTransport,
       });
 
