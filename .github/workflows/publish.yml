@@ -6,11 +6,14 @@ name: Publish to npm
 #   Repository:           ai-conductor
 #   Workflow filename:    publish.yml
 #   Allowed actions:      npm publish
-# Triggered by publishing a GitHub Release (or manually via the Actions tab).
+# Triggered by pushing a version tag `vX.Y.Z` (the tag is the single source of truth),
+# or manually via the Actions tab. Publish the version in package.json — make sure the
+# tag matches it.
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 permissions:
