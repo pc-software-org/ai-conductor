@@ -31,9 +31,10 @@ notifications.
 - Downstream transports: **stdio**, **Streamable HTTP**, **SSE**.
 - Aggregates **tools, resources, and prompts** from all downstreams, with per-server
   namespacing (`serverId__name`) so names never collide.
-- **Persistence** — added servers are stored and reconnected on the next start.
-- Auth passed through per downstream (env vars for stdio, headers for HTTP/SSE), behind a
-  pluggable `SecretProvider` interface.
+- **Lazy connections**: downstreams connect on first use and disconnect after an idle
+  timeout; capabilities are served from a cache so tools are advertised without connecting.
+- **Credentials in the OS keychain** — referenced from config, never stored in plaintext.
+- **Persistence** — added servers are stored and reconnected (lazily) on the next start.
 
 ## Requirements
 
@@ -59,23 +60,21 @@ Or add it manually to your client's MCP config:
 
 Restart the client once. ai-conductor then exposes its meta-tools.
 
-## Usage
+## Managing downstream servers
 
-Manage downstream servers conversationally through the meta-tools:
+Manage downstreams conversationally through the meta-tools:
 
 - **`add_server`** — add and connect a downstream server at runtime (persists).
-  - `id`: unique, alphanumeric/hyphen, no underscores.
+  - `id`: unique, alphanumeric/hyphen, **no underscores**.
   - `transport`: one of
     - `{ "type": "stdio", "command": "...", "args": [...], "env": { ... } }`
     - `{ "type": "http", "url": "https://…/mcp", "headers": { ... } }`
     - `{ "type": "sse", "url": "https://…/sse", "headers": { ... } }`
-- **`remove_server`** — disconnect and remove a downstream server (persists).
-  - `id`: the server id.
-- **`list_servers`** — list managed servers with connection state and capability counts.
+- **`remove_server`** — disconnect and remove a downstream server (persists). Arg: `id`.
+- **`list_servers`** — list managed servers with connection state (`idle`/`connected`/
+  `error`), whether capabilities come from cache, and capability counts.
 
 ### Example
-
-Adding an stdio-based downstream:
 
 ```json
 {
@@ -88,14 +87,57 @@ Adding an stdio-based downstream:
 }
 ```
 
-Once connected, its tools appear as `filesystem__<toolname>` and are callable
-immediately — no restart.
+Its tools then appear as `filesystem__<toolname>`, callable immediately — no restart.
 
-### Secrets
+## Credentials
 
-`env` and `headers` values support `${VAR}` references that are expanded from the
-environment at connect time, so you can avoid hardcoding tokens, e.g.
-`"Authorization": "Bearer ${UPTIMEROBOT_TOKEN}"`.
+Secrets live in the **OS keychain** (macOS Keychain, Windows Credential Manager, Linux
+Secret Service) — never in `config.json` and never passed through the chat.
+
+**1. Store a secret** with the CLI (the value is read from hidden stdin, not the chat):
+
+```bash
+mcp-proxy-conductor secret set my-token
+# or pipe it (e.g. in scripts):
+printf '%s' "$MY_TOKEN" | mcp-proxy-conductor secret set my-token
+
+# remove it again:
+mcp-proxy-conductor secret rm my-token
+```
+
+**2. Reference it** in `add_server` via `${keychain:<name>}`:
+
+```json
+{
+  "id": "uptime",
+  "transport": {
+    "type": "http",
+    "url": "https://example.com/mcp",
+    "headers": { "Authorization": "Bearer ${keychain:my-token}" }
+  }
+}
+```
+
+References are resolved at connect time. Supported placeholder schemes (usable in any
+`env` or `headers` value, and combinable within a string):
+
+| Reference | Resolves from |
+|---|---|
+| `${keychain:NAME}` | OS keychain (service `mcp-proxy-conductor`) |
+| `${env:VAR}` | process environment |
+| `${VAR}` | process environment (shorthand) |
+
+> **Headless Linux** without a running Secret Service daemon cannot use the keychain —
+> use `${env:…}` there instead. A missing or unreachable secret surfaces as an `error`
+> state for that one downstream (visible in `list_servers`); other servers keep working.
+
+## Lazy connections
+
+To scale to many downstreams, connections are **late-bound**: at startup nothing is
+connected — tools/resources/prompts are advertised from a persisted capability cache. A
+downstream connects on the **first actual call** and is evicted after an idle timeout
+(default **5 minutes**, override with `CONDUCTOR_IDLE_TIMEOUT_MS`, in ms; `0` disables
+eviction). The first call to an idle server therefore pays a one-time connect latency.
 
 ## Development
 
@@ -108,14 +150,14 @@ pnpm build       # tsup → dist/index.js
 
 ## Status & limitations
 
-This is an MVP focused on the local, single-user case. Known limitations:
+Local, single-user focus. Known limitations:
 
-- No automatic reconnect/backoff for a downstream that crashes (remove + add to recover).
+- No automatic reconnect/backoff for a downstream that crashes (it returns to `idle` and
+  reconnects on the next call).
 - Change notifications are coarse (all `listChanged` types emitted on any change).
 - HTTP downstreams do not auto-fall back to SSE; the transport type is explicit.
 
-Planned, not yet implemented: multi-tenant/SaaS mode, MCP registry lookup, OS-keychain
-secret backend.
+Planned, not yet implemented: multi-tenant/SaaS mode and MCP registry lookup.
 
 ## License
 
