@@ -32,7 +32,7 @@ export class MetaTools {
       },
       {
         name: 'list_servers',
-        description: 'List managed downstream servers with connection state and capability counts.',
+        description: 'List managed downstream servers: connection state (idle/connected/error), whether capabilities are served from cache, and capability counts.',
         inputSchema: { type: 'object', properties: {} },
       },
     ];

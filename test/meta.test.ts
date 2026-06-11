@@ -28,9 +28,18 @@ describe('MetaTools', () => {
 
   it('add_server connects the server AND persists it', async () => {
     const { meta, mgr, store } = await setup();
-    await meta.call('add_server', { id: 'srvA', transport: { type: 'stdio', command: 'x' } });
+    const res = await meta.call('add_server', { id: 'srvA', transport: { type: 'stdio', command: 'x' } });
+    expect(res.isError).toBeFalsy();
     expect(mgr.get('srvA')?.state).toBe('connected');
     expect((await store.load()).servers.map((s) => s.id)).toEqual(['srvA']);
+  });
+
+  it('list_servers reports state and cached flag as JSON', async () => {
+    const { meta } = await setup();
+    await meta.call('add_server', { id: 'srvA', transport: { type: 'stdio', command: 'x' } });
+    const res = await meta.call('list_servers', {});
+    const parsed = JSON.parse((res.content[0] as { text: string }).text);
+    expect(parsed[0]).toMatchObject({ id: 'srvA', state: 'connected', cached: false });
   });
 
   it('remove_server disconnects AND removes from the store', async () => {

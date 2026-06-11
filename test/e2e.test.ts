@@ -76,4 +76,34 @@ describe('end-to-end', () => {
 
     expect(unhandledRejections).toHaveLength(0);
   });
+
+  it('serves a cached tool while idle and connects lazily only on the actual call', async () => {
+    const a = await makeEchoServer('A');
+    const dir = mkdtempSync(join(tmpdir(), 'lazy-'));
+    const store = new ConfigStore(join(dir, 'config.json'));
+    await store.save({ servers: [{ id: 'srvA', enabled: true, transport: { type: 'stdio', command: 'x', args: [], env: {} } }] });
+    const { CapabilityCache } = await import('../src/config/capability-cache.js');
+    const cache = new CapabilityCache(join(dir, 'capabilities.json'));
+    await cache.save({ srvA: { tools: [{ name: 'echo', inputSchema: { type: 'object' } }] as any, resources: [], prompts: [], fetchedAt: 'x' } });
+
+    let connects = 0;
+    const conductor = await createConductor({
+      store,
+      cache,
+      idleMs: 0,
+      transportFactory: async () => { connects++; return a.clientTransport; },
+    });
+
+    const [clientT, serverT] = InMemoryTransport.createLinkedPair();
+    await conductor.server.connect(serverT);
+    const client = new Client({ name: 'test', version: '1.0.0' });
+    await client.connect(clientT);
+
+    expect((await client.listTools()).tools.some((t) => t.name === 'srvA__echo')).toBe(true);
+    expect(connects).toBe(0);
+
+    const res = await client.callTool({ name: 'srvA__echo', arguments: { text: 'lazy' } });
+    expect((res.content as { text: string }[])[0].text).toBe('A:lazy');
+    expect(connects).toBe(1);
+  });
 });

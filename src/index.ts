@@ -9,11 +9,14 @@ import { DownstreamManager } from './registry/manager.js';
 import { Aggregator } from './aggregator/aggregate.js';
 import { MetaTools } from './meta/tools.js';
 import { buildUpstreamServer } from './server/upstream.js';
+import { CapabilityCache } from './config/capability-cache.js';
 import type { TransportFactory } from './registry/connection.js';
 
 export interface ConductorOptions {
   store?: ConfigStore;
   transportFactory?: TransportFactory;
+  cache?: CapabilityCache;
+  idleMs?: number;
 }
 
 export interface Conductor {
@@ -36,7 +39,10 @@ export async function createConductor(opts: ConductorOptions = {}): Promise<Cond
     server.sendPromptListChanged();
   };
 
-  const manager = new DownstreamManager(transportFactory, onChange);
+  const cache = opts.cache ?? new CapabilityCache();
+  const rawIdleMs = Number(process.env.CONDUCTOR_IDLE_TIMEOUT_MS ?? 300_000);
+  const idleMs = opts.idleMs ?? (Number.isFinite(rawIdleMs) ? rawIdleMs : 300_000);
+  const manager = new DownstreamManager(transportFactory, { onChange, cache, idleMs });
   const aggregator = new Aggregator(manager);
   const meta = new MetaTools(manager, store);
   server = buildUpstreamServer(aggregator, meta);
