@@ -3,7 +3,9 @@ import { fileURLToPath } from 'node:url';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { ConfigStore } from './config/store.js';
-import { EnvSecretProvider } from './secrets/provider.js';
+import { SecretResolver } from './secrets/provider.js';
+import { osKeychain } from './secrets/keychain.js';
+import { runSecretCommand, promptHidden, readAllStdin } from './cli/secret.js';
 import { buildTransport } from './registry/transport.js';
 import { DownstreamManager } from './registry/manager.js';
 import { Aggregator } from './aggregator/aggregate.js';
@@ -17,6 +19,7 @@ export interface ConductorOptions {
   transportFactory?: TransportFactory;
   cache?: CapabilityCache;
   idleMs?: number;
+  secrets?: SecretResolver;
 }
 
 export interface Conductor {
@@ -27,7 +30,7 @@ export interface Conductor {
 
 export async function createConductor(opts: ConductorOptions = {}): Promise<Conductor> {
   const store = opts.store ?? new ConfigStore();
-  const secrets = new EnvSecretProvider();
+  const secrets = opts.secrets ?? new SecretResolver({ env: process.env, keychain: osKeychain() });
   const transportFactory = opts.transportFactory ?? ((def) => buildTransport(def, secrets));
 
   // onChange fires whenever capabilities/state change → tell the upstream client.
@@ -98,13 +101,26 @@ export function isMainModule(argv1: string | undefined, importMetaUrl: string): 
 
 // CLI entry: only runs when executed directly (not when imported by tests).
 if (isMainModule(process.argv[1], import.meta.url)) {
-  createConductor()
-    .then(async (c) => {
-      installShutdownHandlers(c);
-      await c.start();
+  const argv = process.argv.slice(2);
+  if (argv[0] === 'secret') {
+    runSecretCommand(argv.slice(1), osKeychain(), {
+      readSecret: () => (process.stdin.isTTY ? promptHidden('Secret value: ') : readAllStdin()),
+      out: (m) => console.log(m),
     })
-    .catch((err) => {
-      console.error('ai-conductor failed to start:', err);
-      process.exit(1);
-    });
+      .then((code) => process.exit(code))
+      .catch((err) => {
+        console.error(err instanceof Error ? err.message : String(err));
+        process.exit(1);
+      });
+  } else {
+    createConductor()
+      .then(async (c) => {
+        installShutdownHandlers(c);
+        await c.start();
+      })
+      .catch((err) => {
+        console.error('ai-conductor failed to start:', err);
+        process.exit(1);
+      });
+  }
 }
