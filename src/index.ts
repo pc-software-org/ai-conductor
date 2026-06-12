@@ -16,7 +16,6 @@ import type { TransportFactory } from './registry/connection.js';
 import { RegistryAggregator } from './registry-lookup/aggregate.js';
 import { OfficialRegistry } from './registry-lookup/official.js';
 import { GlamaRegistry } from './registry-lookup/glama.js';
-import { PulseMcpRegistry } from './registry-lookup/pulsemcp.js';
 
 export interface ConductorOptions {
   store?: ConfigStore;
@@ -53,7 +52,7 @@ export async function createConductor(opts: ConductorOptions = {}): Promise<Cond
   const manager = new DownstreamManager(transportFactory, { onChange, cache, idleMs });
   const aggregator = new Aggregator(manager);
   const registry =
-    opts.registry ?? new RegistryAggregator([new OfficialRegistry(), new GlamaRegistry(), new PulseMcpRegistry()]);
+    opts.registry ?? new RegistryAggregator([new OfficialRegistry(), new GlamaRegistry()]);
   const meta = new MetaTools(manager, store, registry);
   server = buildUpstreamServer(aggregator, meta);
 
