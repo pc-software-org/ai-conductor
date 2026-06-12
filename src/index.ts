@@ -13,6 +13,10 @@ import { MetaTools } from './meta/tools.js';
 import { buildUpstreamServer } from './server/upstream.js';
 import { CapabilityCache } from './config/capability-cache.js';
 import type { TransportFactory } from './registry/connection.js';
+import { RegistryAggregator } from './registry-lookup/aggregate.js';
+import { OfficialRegistry } from './registry-lookup/official.js';
+import { GlamaRegistry } from './registry-lookup/glama.js';
+import { PulseMcpRegistry } from './registry-lookup/pulsemcp.js';
 
 export interface ConductorOptions {
   store?: ConfigStore;
@@ -20,6 +24,7 @@ export interface ConductorOptions {
   cache?: CapabilityCache;
   idleMs?: number;
   secrets?: SecretResolver;
+  registry?: RegistryAggregator;
 }
 
 export interface Conductor {
@@ -47,7 +52,9 @@ export async function createConductor(opts: ConductorOptions = {}): Promise<Cond
   const idleMs = opts.idleMs ?? (Number.isFinite(rawIdleMs) ? rawIdleMs : 300_000);
   const manager = new DownstreamManager(transportFactory, { onChange, cache, idleMs });
   const aggregator = new Aggregator(manager);
-  const meta = new MetaTools(manager, store);
+  const registry =
+    opts.registry ?? new RegistryAggregator([new OfficialRegistry(), new GlamaRegistry(), new PulseMcpRegistry()]);
+  const meta = new MetaTools(manager, store, registry);
   server = buildUpstreamServer(aggregator, meta);
 
   const config = await store.load();
