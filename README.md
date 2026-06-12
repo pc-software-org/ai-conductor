@@ -89,6 +89,37 @@ Manage downstreams conversationally through the meta-tools:
 
 Its tools then appear as `filesystem__<toolname>`, callable immediately — no restart.
 
+## Discovering servers from registries
+
+Instead of typing transport details by hand, discover servers from MCP registries and
+install them through meta-tools:
+
+- **`list_registries`** — enumerate available registries with capability flags
+  (`canConnect`, `canDetectSecrets`).
+- **`search_registry(query, sources?)`** — search for servers. **Defaults to the official
+  registry** (`registry.modelcontextprotocol.io`); pass `sources` (ids from
+  `list_registries`) to widen the search.
+- **`install_from_registry(ref, { id?, env?, secretBindings? })`** — install a result by
+  its `ref`. For entries that need secrets, store them with `secret set` and pass
+  `secretBindings: { ENV_NAME: "<keychain-name>" }`; for required non-secret env, pass
+  `env: { ENV_NAME: "<value>" }`.
+
+Example: search, then install a server that needs a secret:
+
+```text
+search_registry { "query": "filesystem" }
+→ official:com.example/fs  (connectable, requiredSecrets: ["API_TOKEN"])
+
+mcp-proxy-conductor secret set fs-token        # in your terminal
+install_from_registry { "ref": "official:com.example/fs", "secretBindings": { "API_TOKEN": "fs-token" } }
+```
+
+**Sources & capability asymmetry:** the **official** registry provides structured run
+details and secret flags, so auto-connect and secret detection work fully. **Glama** is a
+discovery source (it lists servers but not a runnable command, so its entries are not
+auto-connectable — use the results to then `add_server` manually). Per-source failures are
+reported in the search result, never crashing the search.
+
 ## Credentials
 
 Secrets live in the **OS keychain** (macOS Keychain, Windows Credential Manager, Linux
@@ -157,7 +188,7 @@ Local, single-user focus. Known limitations:
 - Change notifications are coarse (all `listChanged` types emitted on any change).
 - HTTP downstreams do not auto-fall back to SSE; the transport type is explicit.
 
-Planned, not yet implemented: multi-tenant/SaaS mode and MCP registry lookup.
+Planned, not yet implemented: multi-tenant/SaaS mode.
 
 ## License
 

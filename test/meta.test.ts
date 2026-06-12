@@ -23,7 +23,9 @@ async function setup() {
 describe('MetaTools', () => {
   it('exposes add_server / remove_server / list_servers tool definitions', async () => {
     const { meta } = await setup();
-    expect(meta.definitions().map((t) => t.name).sort()).toEqual(['add_server', 'list_servers', 'remove_server']);
+    expect(meta.definitions().map((t) => t.name).sort()).toEqual([
+      'add_server', 'install_from_registry', 'list_registries', 'list_servers', 'remove_server', 'search_registry',
+    ]);
   });
 
   it('add_server connects the server AND persists it', async () => {
