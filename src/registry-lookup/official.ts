@@ -23,40 +23,40 @@ export class OfficialRegistry implements RegistrySource {
     return (body.servers ?? []).map((s) => this.toEntry(s.server));
   }
 
+  // Prefer a remote (no child process); else the first npm package as stdio. install and
+  // requiredEnv are derived from the SAME chosen package so they never describe different
+  // packages. requiredEnv is only populated for a stdio install (a remote's auth is not
+  // described by package env vars).
   private toEntry(server: OfficialServer): RegistryEntry {
-    return {
-      source: this.id,
-      ref: `${this.id}:${server.name}`,
-      name: server.name,
-      description: server.description ?? '',
-      install: this.installOf(server),
-      requiredEnv: this.envOf(server),
-    };
-  }
-
-  // Prefer a remote (no child process); else the first npm package as stdio.
-  private installOf(server: OfficialServer): InstallInfo | undefined {
     const remote = server.remotes?.[0];
-    if (remote?.url) return { type: remote.type === 'sse' ? 'sse' : 'http', url: remote.url };
     const pkg = (server.packages ?? []).find((p) => p.registryType === 'npm') ?? server.packages?.[0];
-    if (pkg?.identifier) {
-      return {
+
+    let install: InstallInfo | undefined;
+    let requiredEnv: EnvRequirement[] = [];
+    if (remote?.url) {
+      install = { type: remote.type === 'sse' ? 'sse' : 'http', url: remote.url };
+    } else if (pkg?.identifier) {
+      install = {
         type: 'stdio',
         command: pkg.runtimeHint || 'npx',
         args: ['-y', pkg.identifier],
         envNames: (pkg.environmentVariables ?? []).map((e) => e.name),
       };
+      requiredEnv = (pkg.environmentVariables ?? []).map((e) => ({
+        name: e.name,
+        description: e.description,
+        required: !!e.isRequired,
+        secret: !!e.isSecret,
+      }));
     }
-    return undefined;
-  }
 
-  private envOf(server: OfficialServer): EnvRequirement[] {
-    const pkg = (server.packages ?? []).find((p) => p.environmentVariables) ?? server.packages?.[0];
-    return (pkg?.environmentVariables ?? []).map((e) => ({
-      name: e.name,
-      description: e.description,
-      required: !!e.isRequired,
-      secret: !!e.isSecret,
-    }));
+    return {
+      source: this.id,
+      ref: `${this.id}:${server.name}`,
+      name: server.name,
+      description: server.description ?? '',
+      install,
+      requiredEnv,
+    };
   }
 }

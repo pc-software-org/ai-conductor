@@ -27,7 +27,17 @@ export function buildServerDefinition(entry: RegistryEntry, req: InstallRequest)
     };
   }
 
-  // Required secrets must be bound to a keychain name first.
+  const id = normalizeId(req.id ?? entry.name);
+
+  // Remote (http/sse): env/secret binding is out of scope (the registry schema gives no
+  // header name for auth) — connect by URL only. requiredEnv is not applied here.
+  if (entry.install.type !== 'stdio') {
+    return {
+      def: { id, enabled: true, transport: { type: entry.install.type, url: entry.install.url } },
+    };
+  }
+
+  // stdio: required secrets must be bound to a keychain name first.
   const unboundSecrets = entry.requiredEnv
     .filter((e) => e.required && e.secret)
     .filter((e) => !(req.secretBindings && e.name in req.secretBindings));
@@ -41,7 +51,7 @@ export function buildServerDefinition(entry: RegistryEntry, req: InstallRequest)
     };
   }
 
-  // Required non-secret env must be provided as plain values.
+  // stdio: required non-secret env must be provided as plain values.
   const missingEnv = entry.requiredEnv
     .filter((e) => e.required && !e.secret)
     .filter((e) => !(req.env && e.name in req.env));
@@ -52,24 +62,15 @@ export function buildServerDefinition(entry: RegistryEntry, req: InstallRequest)
     };
   }
 
-  const id = normalizeId(req.id ?? entry.name);
-
-  if (entry.install.type === 'stdio') {
-    const env: Record<string, string> = { ...(req.env ?? {}) };
-    for (const [envName, keychainName] of Object.entries(req.secretBindings ?? {})) {
-      env[envName] = `\${keychain:${keychainName}}`;
-    }
-    return {
-      def: {
-        id,
-        enabled: true,
-        transport: { type: 'stdio', command: entry.install.command, args: entry.install.args, env },
-      },
-    };
+  const env: Record<string, string> = { ...(req.env ?? {}) };
+  for (const [envName, keychainName] of Object.entries(req.secretBindings ?? {})) {
+    env[envName] = `\${keychain:${keychainName}}`;
   }
-
-  // Remote (http/sse): env/secret binding out of scope — URL only.
   return {
-    def: { id, enabled: true, transport: { type: entry.install.type, url: entry.install.url } },
+    def: {
+      id,
+      enabled: true,
+      transport: { type: 'stdio', command: entry.install.command, args: entry.install.args, env },
+    },
   };
 }

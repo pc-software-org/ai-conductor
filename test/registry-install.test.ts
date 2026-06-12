@@ -60,4 +60,15 @@ describe('buildServerDefinition', () => {
     const plan = buildServerDefinition(entry, { id: 'r' });
     expect(plan.def).toEqual({ id: 'r', enabled: true, transport: { type: 'http', url: 'https://r.example/mcp' } });
   });
+
+  it('builds a remote definition even when requiredEnv is non-empty (env checks are stdio-only)', () => {
+    const entry: RegistryEntry = {
+      source: 'official', ref: 'official:r2', name: 'r2', description: '',
+      install: { type: 'http', url: 'https://r2.example/mcp' },
+      requiredEnv: [{ name: 'SOME_TOKEN', required: true, secret: true }],
+    };
+    const plan = buildServerDefinition(entry, { id: 'r2' });
+    expect(plan.guidance).toBeUndefined();
+    expect(plan.def).toEqual({ id: 'r2', enabled: true, transport: { type: 'http', url: 'https://r2.example/mcp' } });
+  });
 });
