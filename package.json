@@ -60,9 +60,9 @@
       "fast-uri": "^4.1.4",
       "ip-address": "^10.7.0",
       "hono": "^4.13.7",
-      "@hono/node-server": "latest",
+      "@hono/node-server": "^2.1.1",
       "qs": "^6.16.0",
-      "body-parser": "latest",
+      "body-parser": "^2.3.0",
       "esbuild": "^0.28.1"
     }
   }
