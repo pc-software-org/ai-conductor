@@ -60,3 +60,18 @@ jobs:
             | node dist/index.js \
             | grep -q '"serverInfo"' \
             && echo "Handshake ok" || { echo "Handshake fehlgeschlagen"; exit 1; }
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Nur high/critical bricht den Lauf. Moderate und low sollen nicht jeden
+      # unbeteiligten PR blockieren — die Bewertung gehoert in den Dependabot-PR,
+      # nicht in eine rote Ampel bei fremder Arbeit.
+      - run: pnpm audit --audit-level high
