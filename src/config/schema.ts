@@ -13,13 +13,13 @@ const StdioTransportSchema = z.object({
 
 const HttpTransportSchema = z.object({
   type: z.literal('http'),
-  url: z.string().url(),
+  url: z.url(),
   headers: z.record(z.string(), z.string()).default({}),
 });
 
 const SseTransportSchema = z.object({
   type: z.literal('sse'),
-  url: z.string().url(),
+  url: z.url(),
   headers: z.record(z.string(), z.string()).default({}),
 });
 
