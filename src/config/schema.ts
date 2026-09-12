@@ -13,13 +13,13 @@ const StdioTransportSchema = z.object({
 
 const HttpTransportSchema = z.object({
   type: z.literal('http'),
-  url: z.string().url(),
+  url: z.url(),
   headers: z.record(z.string(), z.string()).default({}),
 });
 
 const SseTransportSchema = z.object({
   type: z.literal('sse'),
-  url: z.string().url(),
+  url: z.url(),
   headers: z.record(z.string(), z.string()).default({}),
 });
 
@@ -32,6 +32,10 @@ export const TransportSchema = z.discriminatedUnion('type', [
 export const ServerDefinitionSchema = z.object({
   id: ServerIdSchema,
   enabled: z.boolean().default(true),
+  // Ein einzelner Wiederholungsversuch beim Verbindungsaufbau, nur fuer stdio.
+  // Default an; abschaltbar fuer Server, bei denen ein zweiter Spawn stoert
+  // (teurer Start, Seiteneffekte beim Hochfahren) oder die Diagnose verschleiert.
+  autoRetry: z.boolean().default(true),
   transport: TransportSchema,
 });
 

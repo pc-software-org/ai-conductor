@@ -1,0 +1,39 @@
+# Dependabot Version-Updates.
+#
+# Leitgedanke: Minor/Patch gebuendelt als je ein PR, Majors einzeln.
+# Majors brauchen hier regelmaessig eine Entscheidung statt nur einen gruenen
+# Haken — zod 4, keyring 2 und TypeScript 7 haben jeweils Verhaltens- oder
+# Konfigurationsaenderungen mitgebracht, die kein Testlauf von allein aufdeckt.
+version: 2
+
+updates:
+  - package-ecosystem: npm # deckt pnpm mit ab
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    # Frisch veroeffentlichte Versionen kurz abliegen lassen. Fenster, in dem
+    # kompromittierte Releases typischerweise auffliegen und zurueckgezogen werden.
+    cooldown:
+      semver-patch-days: 3
+      semver-minor-days: 7
+      semver-major-days: 14
+    groups:
+      # Laufzeit-Abhaengigkeiten: landen beim Nutzer, daher eigener PR.
+      runtime-minor:
+        dependency-type: production
+        update-types: [minor, patch]
+      # Build-/Testwerkzeug: Sammel-PR, faellt beim Nutzer nicht an.
+      dev-minor:
+        dependency-type: development
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: / # gilt fuer .github/workflows/
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ['*']

@@ -63,7 +63,7 @@ Tragende Konzepte, die mehrere Dateien betreffen werden:
 
 ## Tech-Stack & Begründung
 
-- **TypeScript auf Node.js** (Node ≥ 20; Entwicklungsumgebung: Node v26).
+- **TypeScript auf Node.js** (Node ≥ 24; Entwicklungsumgebung: Node v26).
   Gewählt, weil das offizielle **`@modelcontextprotocol/sdk`** (aktuell `1.29.0`) in
   TS am ausgereiftesten ist und in **einem Prozess** beide Rollen unterstützt:
   `Server` + `StreamableHTTPServerTransport`/stdio nach oben, `Client` +
@@ -79,6 +79,24 @@ Tragende Konzepte, die mehrere Dateien betreffen werden:
 > Vor dem Festlegen weiterer Bibliotheken (HTTP-Framework, Validierung, Secrets,
 > Config-Loader) zuerst **context7** für aktuelle Versionen konsultieren — nicht aus
 > dem Gedächtnis empfehlen.
+
+### pnpm-Overrides auf SDK-Transitives
+
+`pnpm.overrides` in der package.json hebt transitive Abhängigkeiten des
+`@modelcontextprotocol/sdk` auf gepatchte Versionen an (fast-uri, ip-address,
+hono, @hono/node-server, qs, body-parser) sowie esbuild auf ≥ 0.28.1.
+
+Hintergrund: Das SDK zieht seinen HTTP-**Server**-Stack (express, hono) als
+reguläre dependency mit, auch wenn man ihn nicht benutzt. Hier wird er nicht
+benutzt — importiert werden nur `client/*`, `server/index.js` und
+`server/stdio.js`, nie `server/streamableHttp.js`. Der verwundbare Code ist also
+nicht erreichbar, landet aber beim Nutzer auf der Platte und schlägt in jedem
+`npm audit` auf. Für einen Proxy, der Credentials verwaltet, ist ein sauberes
+Audit die Mühe wert.
+
+Die Overrides übergehen bewusst die Versionsangaben des SDK. Sobald das SDK die
+Bumps selbst mitbringt, gehören sie wieder raus — beim Anheben der SDK-Version
+also `pnpm audit` ohne Overrides gegenprüfen.
 
 ## Konventionen für die Arbeit hier
 

@@ -30,6 +30,7 @@ export class MetaTools {
           properties: {
             id: { type: 'string', description: 'Unique id, alphanumeric/hyphen, no underscores' },
             transport: { type: 'object', description: 'Transport: {type:"stdio",command,args?,env?} | {type:"http",url,headers?} | {type:"sse",url,headers?}' },
+            autoRetry: { type: 'boolean', description: 'Retry a failed connect once (stdio only). Default true; set false for servers where a second spawn is unwanted.' },
           },
           required: ['id', 'transport'],
         },
@@ -37,6 +38,11 @@ export class MetaTools {
       {
         name: 'remove_server',
         description: 'Disconnect and remove a downstream MCP server. Persists across restarts.',
+        inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+      },
+      {
+        name: 'restart_server',
+        description: 'Reconnect a downstream MCP server: disconnect, then start it again from its stored definition. Leaves the stored config untouched — use this instead of remove_server + add_server, which would make you retype the transport. Only meaningful for local (stdio) servers; for http/sse it just rebuilds this end of the connection.',
         inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
       },
       {
@@ -80,13 +86,14 @@ export class MetaTools {
   }
 
   has(name: string): boolean {
-    return ['add_server', 'remove_server', 'list_servers', 'list_registries', 'search_registry', 'install_from_registry'].includes(name);
+    return ['add_server', 'remove_server', 'restart_server', 'list_servers', 'list_registries', 'search_registry', 'install_from_registry'].includes(name);
   }
 
   async call(name: string, args: Record<string, unknown>): Promise<ToolResult> {
     try {
       if (name === 'add_server') return await this.addServer(args);
       if (name === 'remove_server') return await this.removeServer(args);
+      if (name === 'restart_server') return await this.restartServer(args);
       if (name === 'list_servers') return ok(JSON.stringify(this.manager.list(), null, 2));
       if (name === 'list_registries') return this.listRegistries();
       if (name === 'search_registry') return await this.searchRegistry(args);
@@ -105,7 +112,7 @@ export class MetaTools {
   }
 
   private async addServer(args: Record<string, unknown>): Promise<ToolResult> {
-    const def = ServerDefinitionSchema.parse({ id: args.id, transport: args.transport, enabled: true });
+    const def = ServerDefinitionSchema.parse({ id: args.id, transport: args.transport, enabled: true, autoRetry: args.autoRetry });
     await this.persistAndAdd(def);
     return ok(`server '${def.id}' added (state: ${this.manager.get(def.id)?.state}).`);
   }
@@ -118,6 +125,20 @@ export class MetaTools {
     config.servers = config.servers.filter((s) => s.id !== id);
     await this.store.save(config);
     return ok(`server '${id}' removed.`);
+  }
+
+  // Neustart aus der gespeicherten Definition. Bewusst ohne store.save(): die Config
+  // ist hier die Quelle, nicht das Ziel — anders als bei add_server/remove_server kann
+  // ein Neustart die Definition also nicht beschaedigen.
+  private async restartServer(args: Record<string, unknown>): Promise<ToolResult> {
+    const id = String(args.id ?? '');
+    if (!id) return fail('id is required');
+    const config = await this.store.load();
+    const def = config.servers.find((s) => s.id === id);
+    if (!def) return fail(`unknown server '${id}'`);
+    await this.manager.remove(id); // No-op bei unbekannter id; muss vor add() durch sein
+    await this.manager.add(def); // faengt Connect-Fehler selbst ab -> state statt throw
+    return ok(`server '${id}' restarted (state: ${this.manager.get(id)?.state}).`);
   }
 
   private listRegistries(): ToolResult {

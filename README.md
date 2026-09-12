@@ -34,11 +34,13 @@ notifications.
 - **Lazy connections**: downstreams connect on first use and disconnect after an idle
   timeout; capabilities are served from a cache so tools are advertised without connecting.
 - **Credentials in the OS keychain** — referenced from config, never stored in plaintext.
+- **Restart without retyping** — `restart_server` reconnects a downstream from its stored
+  definition; a failed stdio connect is retried once, automatically.
 - **Persistence** — added servers are stored and reconnected (lazily) on the next start.
 
 ## Requirements
 
-- Node.js ≥ 20
+- Node.js ≥ 24
 
 ## Install & register
 
@@ -70,7 +72,14 @@ Manage downstreams conversationally through the meta-tools:
     - `{ "type": "stdio", "command": "...", "args": [...], "env": { ... } }`
     - `{ "type": "http", "url": "https://…/mcp", "headers": { ... } }`
     - `{ "type": "sse", "url": "https://…/sse", "headers": { ... } }`
+  - `autoRetry` (optional, default `true`): retry a failed connect once. stdio only —
+    see [Connection retries](#connection-retries).
 - **`remove_server`** — disconnect and remove a downstream server (persists). Arg: `id`.
+- **`restart_server`** — reconnect a downstream from its **stored** definition. Arg: `id`.
+  The stored config is left untouched, so a restart cannot damage the definition — unlike
+  `remove_server` + `add_server`, which makes you retype the transport and silently drops
+  whatever you forget. If the server does not come back, the resulting state is reported
+  rather than thrown, and the definition survives.
 - **`list_servers`** — list managed servers with connection state (`idle`/`connected`/
   `error`), whether capabilities come from cache, and capability counts.
 
@@ -170,6 +179,19 @@ downstream connects on the **first actual call** and is evicted after an idle ti
 (default **5 minutes**, override with `CONDUCTOR_IDLE_TIMEOUT_MS`, in ms; `0` disables
 eviction). The first call to an idle server therefore pays a one-time connect latency.
 
+## Connection retries
+
+A failed **connect** is retried **once**, and only for **stdio** downstreams: there, the
+second attempt spawns a fresh process and catches a server that died on startup. For
+`http`/`sse` the server is someone else's — retrying from this end changes nothing about
+its state, so we skip the doubled latency.
+
+Deliberately exactly one attempt: no backoff, no loop. Switch it off per server with
+`autoRetry: false` — worth doing when a second spawn is expensive, has side effects, or
+just obscures what actually went wrong.
+
+Configs written before `autoRetry` existed need no change; the field defaults to on.
+
 ## Development
 
 ```bash
@@ -183,8 +205,13 @@ pnpm build       # tsup → dist/index.js
 
 Local, single-user focus. Known limitations:
 
-- No automatic reconnect/backoff for a downstream that crashes (it returns to `idle` and
-  reconnects on the next call).
+- No backoff: a failed stdio connect is retried once (see
+  [Connection retries](#connection-retries)), then gives up. A downstream that crashes
+  while connected returns to `idle` and reconnects on the next call.
+- A downstream that holds the connection open but has stopped working still reports
+  `connected`, and nothing retries it — calls go to a dead server until you
+  `restart_server` it. Detecting that would need a retry at the call layer, which cannot
+  safely repeat a non-idempotent tool call.
 - Change notifications are coarse (all `listChanged` types emitted on any change).
 - HTTP downstreams do not auto-fall back to SSE; the transport type is explicit.
 

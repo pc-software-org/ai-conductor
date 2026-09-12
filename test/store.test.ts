@@ -18,9 +18,18 @@ describe('ConfigStore', () => {
 
   it('round-trips a saved config', async () => {
     const store = new ConfigStore(path);
-    const cfg = { servers: [{ id: 'a', enabled: true, transport: { type: 'stdio' as const, command: 'x', args: [], env: {} } }] };
+    const cfg = { servers: [{ id: 'a', enabled: true, autoRetry: true, transport: { type: 'stdio' as const, command: 'x', args: [], env: {} } }] };
     await store.save(cfg);
     expect(await new ConfigStore(path).load()).toEqual(cfg);
+  });
+
+  it('loads a config written before autoRetry existed, defaulting it to on', async () => {
+    const { writeFileSync } = await import('node:fs');
+    writeFileSync(path, JSON.stringify({
+      servers: [{ id: 'a', enabled: true, transport: { type: 'stdio', command: 'x', args: [], env: {} } }],
+    }));
+    const loaded = await new ConfigStore(path).load();
+    expect(loaded.servers[0].autoRetry).toBe(true);
   });
 
   it('rejects a corrupt/invalid config file', async () => {

@@ -4,6 +4,9 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "strict": true,
+    // TS 7 sammelt @types/* nicht mehr automatisch aus dem pnpm-Symlink-Layout ein.
+    // Explizit ist ohnehin deterministischer: nur node, keine fremden Ambient-Typen.
+    "types": ["node"],
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,

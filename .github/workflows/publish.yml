@@ -26,16 +26,17 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # Ohne version-Input: nimmt die Version aus "packageManager" in package.json,
+      # damit Release, CI und lokale Entwicklung dasselbe pnpm benutzen.
       - uses: pnpm/action-setup@v6
-        with:
-          version: 9
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
           registry-url: https://registry.npmjs.org
 
-      # Trusted publishing requires npm >= 11.5.1 (Node 22 ships an older npm).
+      # Trusted publishing requires npm >= 11.5.1. Node 24 ships 11.19 and would
+      # already do, but pinning to latest keeps this independent of the runner image.
       - run: npm install -g npm@latest
 
       - run: pnpm install --frozen-lockfile

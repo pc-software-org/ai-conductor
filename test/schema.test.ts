@@ -11,6 +11,20 @@ describe('ServerDefinitionSchema', () => {
     expect(def.transport).toMatchObject({ type: 'stdio', env: {} });
   });
 
+  it('defaults autoRetry to true, so existing configs keep the retry without being touched', () => {
+    const def = ServerDefinitionSchema.parse({ id: 'github', transport: { type: 'stdio', command: 'npx' } });
+    expect(def.autoRetry).toBe(true);
+  });
+
+  it('accepts autoRetry: false to switch the retry off for one server', () => {
+    const def = ServerDefinitionSchema.parse({
+      id: 'flaky',
+      autoRetry: false,
+      transport: { type: 'stdio', command: 'npx' },
+    });
+    expect(def.autoRetry).toBe(false);
+  });
+
   it('rejects ids containing underscores (namespacing safety)', () => {
     expect(() =>
       ServerDefinitionSchema.parse({ id: 'gh__x', transport: { type: 'stdio', command: 'x' } }),
