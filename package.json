@@ -31,6 +31,7 @@
   "engines": {
     "node": ">=20"
   },
+  "packageManager": "pnpm@10.33.2",
   "scripts": {
     "gen:version": "node scripts/gen-version.mjs",
     "build": "pnpm gen:version && tsup",
