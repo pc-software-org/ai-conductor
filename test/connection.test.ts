@@ -3,7 +3,7 @@ import { DownstreamConnection } from '../src/registry/connection.js';
 import { makeEchoServer } from './helpers/echoServer.js';
 import type { ServerDefinition } from '../src/config/schema.js';
 
-const def: ServerDefinition = { id: 'srvA', enabled: true, transport: { type: 'stdio', command: 'x', args: [], env: {} } };
+const def: ServerDefinition = { id: 'srvA', enabled: true, autoRetry: true, transport: { type: 'stdio', command: 'x', args: [], env: {} } };
 
 afterEach(() => vi.useRealTimers());
 
@@ -55,5 +55,65 @@ describe('DownstreamConnection', () => {
     await expect(conn.ensureConnected()).rejects.toThrow('boom');
     expect(conn.state).toBe('error');
     expect(conn.error).toContain('boom');
+  });
+
+  it('retries a failed stdio connect exactly once, then succeeds', async () => {
+    let attempts = 0;
+    const conn = new DownstreamConnection(def, async () => {
+      attempts++;
+      if (attempts === 1) throw new Error('spawn failed');
+      return (await makeEchoServer('A')).clientTransport;
+    });
+
+    await conn.ensureConnected();
+
+    expect(conn.state).toBe('connected');
+    expect(attempts).toBe(2);
+    expect(conn.error).toBeUndefined();
+  });
+
+  it('gives up after the single stdio retry instead of looping', async () => {
+    let attempts = 0;
+    const conn = new DownstreamConnection(def, async () => {
+      attempts++;
+      throw new Error('spawn failed');
+    });
+
+    await expect(conn.ensureConnected()).rejects.toThrow('spawn failed');
+
+    expect(attempts).toBe(2); // genau ein Wiederholungsversuch, kein Dauerloop
+    expect(conn.state).toBe('error');
+  });
+
+  it('does not retry a remote (http) connect — the downstream is not ours to restart', async () => {
+    const httpDef: ServerDefinition = {
+      id: 'srvHttp',
+      enabled: true,
+      transport: { type: 'http', url: 'https://example.invalid/mcp', headers: {} },
+    };
+    let attempts = 0;
+    const conn = new DownstreamConnection(httpDef, async () => {
+      attempts++;
+      throw new Error('unreachable');
+    });
+
+    await expect(conn.ensureConnected()).rejects.toThrow('unreachable');
+
+    expect(attempts).toBe(1);
+    expect(conn.state).toBe('error');
+  });
+
+  it('skips the retry when autoRetry is switched off for that server', async () => {
+    const noRetryDef: ServerDefinition = { ...def, autoRetry: false };
+    let attempts = 0;
+    const conn = new DownstreamConnection(noRetryDef, async () => {
+      attempts++;
+      throw new Error('spawn failed');
+    });
+
+    await expect(conn.ensureConnected()).rejects.toThrow('spawn failed');
+
+    expect(attempts).toBe(1);
+    expect(conn.state).toBe('error');
   });
 });

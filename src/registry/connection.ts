@@ -92,7 +92,22 @@ export class DownstreamConnection {
     if (this.state !== 'error') this.state = 'idle';
   }
 
+  // Ein einzelner Wiederholungsversuch, und nur fuer lokale (stdio) Downstreams: dort
+  // spawnt der zweite Anlauf einen frischen Prozess, was einen beim Start verunglueckten
+  // Server einfaengt. Bei http/sse laeuft der Server fremd — ein Neuversuch von hier aus
+  // aendert an dessen Zustand nichts, also sparen wir uns die doppelte Latenz.
+  // Bewusst genau ein Versuch: kein Backoff, keine Schleife.
+  // Pro Server abschaltbar ueber autoRetry: false in der Definition.
   private async doConnect(): Promise<void> {
+    try {
+      await this.attemptConnect();
+    } catch (err) {
+      if (this.def.transport.type !== 'stdio' || !this.def.autoRetry) throw err;
+      await this.attemptConnect();
+    }
+  }
+
+  private async attemptConnect(): Promise<void> {
     this.state = 'connecting';
     // Fresh client per connect — a closed Client is not reusable after idle eviction.
     const client = new Client({ name: 'ai-conductor', version: VERSION });
