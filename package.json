@@ -42,7 +42,7 @@
     "prepublishOnly": "pnpm typecheck && pnpm test && pnpm build"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.30.0",
+    "@modelcontextprotocol/sdk": "1.31.0",
     "@napi-rs/keyring": "^2.0.0",
     "env-paths": "^4.0.0",
     "zod": "^4.6.2"
