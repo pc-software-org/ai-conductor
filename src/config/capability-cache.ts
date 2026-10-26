@@ -50,7 +50,21 @@ export class CapabilityCache {
     await mkdir(dirname(this.path), { recursive: true });
     const tmp = `${this.path}.${process.pid}.tmp`;
     await writeFile(tmp, data, 'utf8');
-    await rename(tmp, this.path);
+    await renameWithRetry(tmp, this.path);
+  }
+}
+
+// Windows refuses to replace a file another handle has open (e.g. a concurrent load()),
+// failing with EPERM/EACCES/EBUSY. Those clear within milliseconds, so retry briefly.
+async function renameWithRetry(from: string, to: string): Promise<void> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await rename(from, to);
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (attempt >= 10 || !['EPERM', 'EACCES', 'EBUSY'].includes(code ?? '')) throw err;
+      await new Promise((r) => setTimeout(r, attempt * 10));
+    }
   }
 }
 
