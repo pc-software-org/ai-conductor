@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import envPaths from 'env-paths';
 import { z } from 'zod';
@@ -35,9 +35,36 @@ export class CapabilityCache {
     return parsed.success ? parsed.data : {};
   }
 
-  async save(map: CapabilityCacheMap): Promise<void> {
+  // Saves are serialized (last call wins) and atomic (tmp file + rename), so concurrent
+  // callers can neither interleave writes nor let a load() see a half-written file.
+  save(map: CapabilityCacheMap): Promise<void> {
+    const data = JSON.stringify(map, null, 2); // snapshot now: callers mutate their map
+    const run = this.pending.then(() => this.write(data));
+    this.pending = run.catch(() => undefined);
+    return run;
+  }
+
+  private pending: Promise<void> = Promise.resolve();
+
+  private async write(data: string): Promise<void> {
     await mkdir(dirname(this.path), { recursive: true });
-    await writeFile(this.path, JSON.stringify(map, null, 2), 'utf8');
+    const tmp = `${this.path}.${process.pid}.tmp`;
+    await writeFile(tmp, data, 'utf8');
+    await renameWithRetry(tmp, this.path);
+  }
+}
+
+// Windows refuses to replace a file another handle has open (e.g. a concurrent load()),
+// failing with EPERM/EACCES/EBUSY. Those clear within milliseconds, so retry briefly.
+async function renameWithRetry(from: string, to: string): Promise<void> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await rename(from, to);
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (attempt >= 10 || !['EPERM', 'EACCES', 'EBUSY'].includes(code ?? '')) throw err;
+      await new Promise((r) => setTimeout(r, attempt * 10));
+    }
   }
 }
 
