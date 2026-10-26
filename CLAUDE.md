@@ -64,7 +64,7 @@ Tragende Konzepte, die mehrere Dateien betreffen werden:
 ## Tech-Stack & Begründung
 
 - **TypeScript auf Node.js** (Node ≥ 24; Entwicklungsumgebung: Node v26).
-  Gewählt, weil das offizielle **`@modelcontextprotocol/sdk`** (aktuell `1.29.0`) in
+  Gewählt, weil das offizielle **`@modelcontextprotocol/sdk`** (aktuell `1.32.2`) in
   TS am ausgereiftesten ist und in **einem Prozess** beide Rollen unterstützt:
   `Server` + `StreamableHTTPServerTransport`/stdio nach oben, `Client` +
   `StreamableHTTPClientTransport`/stdio (Child-Process) nach unten.
