@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { resolve } from 'node:path';
 import { ServerDefinitionSchema, ConfigSchema } from '../src/config/schema.js';
 
 describe('ServerDefinitionSchema', () => {
@@ -23,6 +24,20 @@ describe('ServerDefinitionSchema', () => {
       transport: { type: 'stdio', command: 'npx' },
     });
     expect(def.autoRetry).toBe(false);
+  });
+
+  it('accepts an absolute cwd for stdio and leaves it unset by default', () => {
+    const dir = resolve('srv');
+    const def = ServerDefinitionSchema.parse({ id: 'a', transport: { type: 'stdio', command: 'x', cwd: dir } });
+    expect(def.transport).toMatchObject({ cwd: dir });
+    const plain = ServerDefinitionSchema.parse({ id: 'b', transport: { type: 'stdio', command: 'x' } });
+    expect(plain.transport).not.toHaveProperty('cwd');
+  });
+
+  it('rejects a relative cwd, it would depend on the working directory of the client', () => {
+    expect(() =>
+      ServerDefinitionSchema.parse({ id: 'a', transport: { type: 'stdio', command: 'x', cwd: 'srv' } }),
+    ).toThrow();
   });
 
   it('rejects ids containing underscores (namespacing safety)', () => {

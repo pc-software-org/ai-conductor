@@ -1,3 +1,4 @@
+import { isAbsolute } from 'node:path';
 import { z } from 'zod';
 
 // serverId: starts alphanumeric, then alphanumerics/hyphens. No underscores → can never
@@ -9,6 +10,10 @@ const StdioTransportSchema = z.object({
   command: z.string().min(1),
   args: z.array(z.string()).default([]),
   env: z.record(z.string(), z.string()).default({}),
+  // Arbeitsverzeichnis des Kindprozesses. Ohne Angabe erbt er das des Clients, und das
+  // wechselt je Session (z.B. waehlt corepack die pnpm-Version nach dem package.json dort).
+  // Nur absolute Pfade, ein relativer haette dasselbe Problem.
+  cwd: z.string().refine(isAbsolute, 'cwd must be an absolute path').optional(),
 });
 
 const HttpTransportSchema = z.object({

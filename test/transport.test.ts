@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import { mkdtempSync, realpathSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { buildTransport } from '../src/registry/transport.js';
 import { EnvSecretProvider } from '../src/secrets/provider.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
@@ -14,6 +17,25 @@ describe('buildTransport', () => {
       sp,
     );
     expect(t).toBeInstanceOf(StdioClientTransport);
+  });
+
+  it('starts the stdio child in the configured cwd, not in the cwd of the client', async () => {
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'conductor-cwd-')));
+    const script = "console.log(JSON.stringify({jsonrpc:'2.0',method:'cwd',params:{cwd:process.cwd()}}))";
+    const t = await buildTransport(
+      { id: 'd', enabled: true, autoRetry: true, transport: { type: 'stdio', command: process.execPath, args: ['-e', script], env: {}, cwd: dir } },
+      sp,
+    );
+    const msg = new Promise<unknown>((res, rej) => {
+      t.onmessage = res;
+      t.onerror = rej;
+    });
+    await t.start();
+    try {
+      expect(await msg).toMatchObject({ params: { cwd: dir } });
+    } finally {
+      await t.close();
+    }
   });
 
   it('builds an http transport', async () => {

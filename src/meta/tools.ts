@@ -29,7 +29,7 @@ export class MetaTools {
           type: 'object',
           properties: {
             id: { type: 'string', description: 'Unique id, alphanumeric/hyphen, no underscores' },
-            transport: { type: 'object', description: 'Transport: {type:"stdio",command,args?,env?} | {type:"http",url,headers?} | {type:"sse",url,headers?}' },
+            transport: { type: 'object', description: 'Transport: {type:"stdio",command,args?,env?,cwd?} | {type:"http",url,headers?} | {type:"sse",url,headers?}' },
             autoRetry: { type: 'boolean', description: 'Retry a failed connect once (stdio only). Default true; set false for servers where a second spawn is unwanted.' },
           },
           required: ['id', 'transport'],

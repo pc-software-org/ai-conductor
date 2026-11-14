@@ -9,7 +9,12 @@ export async function buildTransport(def: ServerDefinition, secrets: SecretProvi
   const t = def.transport;
   if (t.type === 'stdio') {
     const env = await secrets.resolveRecord(t.env);
-    return new StdioClientTransport({ command: t.command, args: t.args, env: { ...getDefaultEnvironment(), ...env } });
+    return new StdioClientTransport({
+      command: t.command,
+      args: t.args,
+      env: { ...getDefaultEnvironment(), ...env },
+      cwd: t.cwd,
+    });
   }
   const headers = await secrets.resolveRecord(t.headers);
   const requestInit = { headers };

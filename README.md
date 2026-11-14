@@ -69,7 +69,11 @@ Manage downstreams conversationally through the meta-tools:
 - **`add_server`** — add and connect a downstream server at runtime (persists).
   - `id`: unique, alphanumeric/hyphen, **no underscores**.
   - `transport`: one of
-    - `{ "type": "stdio", "command": "...", "args": [...], "env": { ... } }`
+    - `{ "type": "stdio", "command": "...", "args": [...], "env": { ... }, "cwd": "/abs/path" }`
+      — `cwd` is optional and must be absolute. Without it the child inherits the
+      working directory of the MCP client, which changes from session to session. Set it
+      for anything that reads its surroundings, e.g. `corepack pnpm`, which picks the pnpm
+      version from the `package.json` in the working directory, not from `--dir`.
     - `{ "type": "http", "url": "https://…/mcp", "headers": { ... } }`
     - `{ "type": "sse", "url": "https://…/sse", "headers": { ... } }`
   - `autoRetry` (optional, default `true`): retry a failed connect once. stdio only —
